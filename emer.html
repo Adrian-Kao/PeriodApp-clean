@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>緊急聯絡</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #ffe4e1;
+            text-align: center;
+            padding: 50px;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 100px;
+            margin-bottom: 20px;
+        }
+
+        .button-group button {
+            background-color: #ff69b4;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+
+        .button-group button:hover {
+            background-color: #ff1493;
+        }
+
+        .emergency-btn {
+            background-color: red;
+            color: white;
+            font-size: 100px;
+            font-weight: bold;
+            padding: 20px 40px;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+        }
+
+        .emergency-btn:hover {
+            background-color: darkred;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>緊急聯絡</h1>
+        <div class="button-group">
+            <button onclick="callNumber('dad')">爸爸</button>
+            <button onclick="callNumber('mom')">媽媽</button>
+            <button onclick="callNumber('bf')">男友</button>
+        </div>
+        <div class="emergency">
+            <button class="emergency-btn" onclick="callNumber('119')">119</button>
+        </div>
+    </div>
+
+    <script>
+        function callNumber(contact) {
+            let phoneNumbers = {
+                dad: "tel:0912345678",
+                mom: "tel:0923456789",
+                bf: "tel:0934567890",
+                119: "tel:119"
+            };
+            window.location.href = phoneNumbers[contact];
+        }
+    </script>
+</body>
+</html>

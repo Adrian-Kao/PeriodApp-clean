@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>阿月生理期系統</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header>
+  阿月生理期系統
+</header>
+
+<div class="main">
+  <div class="chat-container" id="chat">
+    <!-- 對話訊息會自動加在這裡 -->
+  </div>
+
+  <div class="menu">
+    <a href="report.html" class="feature-card">月經紀錄</a>
+    <a href="health.html" class="feature-card">健康推薦系統</a>
+    <a href="map.html" class="feature-card">校園月經地圖</a>
+  </div>
+</div>
+
+<a href="emer.html" class="emergency-button">EMER</a>
+
+<div class="input-area">
+  <input type="text" id="userInput" placeholder="您可以在此輸入...">
+  <button onclick="sendMessage()">送出</button>
+</div>
+
+<script>
+async function sendMessage() {
+  const userInput = document.getElementById('userInput').value.trim();
+  if (!userInput) return;
+
+  const chat = document.getElementById('chat');
+
+  const userMessage = document.createElement('div');
+  userMessage.className = 'message from-user';
+  userMessage.textContent =  userInput;
+  chat.appendChild(userMessage);
+  chat.scrollTop = chat.scrollHeight;
+
+  document.getElementById('userInput').value = '';
+
+  try {
+    const response = await fetch('http://localhost:3000/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: "llama3",
+        messages: [
+          { role: "user", content: userInput }
+        ],
+        stream: false
+      })
+    });
+
+    const data = await response.json();
+
+    const botMessage = document.createElement('div');
+    botMessage.className = 'message from-bot';
+    botMessage.textContent = "阿月：" + (data.message?.content || '回覆有問題');
+    chat.appendChild(botMessage);
+    chat.scrollTop = chat.scrollHeight;
+
+  } catch (error) {
+    console.error('錯誤:', error);
+    const errorMessage = document.createElement('div');
+    errorMessage.className = 'message from-bot';
+    errorMessage.textContent = "小幫手：很抱歉，目前連線出現問題。";
+    chat.appendChild(errorMessage);
+  }
+}
+
+
+
+// 支援 Enter 鍵送出
+const inputField = document.getElementById('userInput');
+inputField.addEventListener('keydown', function (event) {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    sendMessage();
+  }
+});
+</script>
+
+</body>
+</html>
