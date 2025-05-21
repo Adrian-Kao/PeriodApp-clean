@@ -19,11 +19,15 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 app.use(cors());
 app.use(express.json());
 
-// 使用者需求 → 對應的餐點分類
+// 健康需求對應的餐點分類
 const keywordMap = {
-  "經痛": ["優質蛋白質", "低GI", "蔬菜"],
-  "想吃甜點": ["功能性甜點"],
-  "容易疲勞": ["健康主食", "優質蛋白質"]
+  "經痛": ["優質蛋白質", "低GI碳水", "蔬菜類", "健康脂肪", "鐵質補給類", "抗發炎食物"],
+  "想吃甜點": ["功能性甜點", "飲品"],
+  "容易疲勞": ["健康主食", "優質蛋白質", "高纖類"],
+  "控糖": ["低GI碳水", "健康主食", "高纖類"],
+  "需要補鐵": ["鐵質補給類", "優質蛋白質"],
+  "清爽一點": ["蔬菜類", "湯品", "飲品"],
+  "放鬆心情": ["功能性甜點", "飲品", "健康脂肪"]
 };
 
 app.post('/chat', async (req, res) => {
@@ -37,31 +41,67 @@ app.post('/chat', async (req, res) => {
     const allDishes = [];
     snapshot.forEach(doc => allDishes.push(doc.data()));
 
-    // 判斷關鍵字對應分類
+    // 根據輸入篩選分類
     const matchedKeywords = Object.keys(keywordMap).find(key => userMessage.includes(key));
     const tagsToFilter = matchedKeywords ? keywordMap[matchedKeywords] : [];
 
-    // 根據分類篩選餐點
     const filteredDishes = tagsToFilter.length === 0
-      ? allDishes.slice(0, 30)
-      : allDishes.filter(dish => tagsToFilter.includes(dish.category)).slice(0, 30);
+      ? allDishes.slice(0, 50)
+      : allDishes.filter(dish => tagsToFilter.includes(dish.category)).slice(0, 50);
 
-    // 精簡版 Gemini prompt
+    // 自動分類函式：主餐 / 配菜 / 飲品
+    const getDishType = (dish) => {
+      const name = dish.name || '';
+      const category = dish.category || '';
+      if (
+        name.includes("飯") || name.includes("麵") ||
+        category.includes("主食") || category.includes("蛋白質")
+      ) return "主餐";
+      if (
+        name.includes("湯") || name.includes("青菜") || name.includes("菜") ||
+        category.includes("蔬菜") || category.includes("湯品")
+      ) return "配菜";
+      if (
+        name.includes("茶") || name.includes("豆漿") || name.includes("飲") || name.includes("甜") ||
+        category.includes("飲品") || category.includes("甜點")
+      ) return "飲品";
+      return "其他";
+    };
+
+    // 分類各自挑出 10 道以內
+    const mains = filteredDishes.filter(d => getDishType(d) === "主餐").slice(0, 10);
+    const sides = filteredDishes.filter(d => getDishType(d) === "配菜").slice(0, 10);
+    const drinks = filteredDishes.filter(d => getDishType(d) === "飲品").slice(0, 10);
+
+    // 組 Gemini prompt（清楚分類）
     const prompt = `
-使用者輸入的健康需求是：「${userMessage}」。
+使用者輸入的健康需求是：「${userMessage}」
 
-以下是餐點選項（最多 30 筆）：
-${JSON.stringify(filteredDishes, null, 2)}
+請根據下列選項，搭配出一份完整套餐，包含：
+- 一份【主餐】
+- 一道【配菜】
+- 一杯【飲品或甜點】
 
-請從中推薦最適合的 3 道餐點。每道列出：
-- 菜名（店名）
-- 一句推薦理由（說明其營養或口味優勢）
+每道請列出菜名（含店名）與一句推薦理由，語氣簡短明確，避免多餘說明。
+格式如下：
 
-請直接列出推薦，勿加入寒暄或多餘文字。格式如下：
+【主餐】
+雞腿飯（左撇子便當）：富含蛋白質，補充經期體力
 
-1. 菜名（店名）：推薦理由。
-2. ...
-3. ...
+【配菜】
+燙青菜（給力盒子）：高纖維，幫助消化
+
+【飲品或甜點】
+紅豆湯（清心福全）：甜度適中，有助舒緩情緒
+
+【主餐選項】
+${JSON.stringify(mains, null, 2)}
+
+【配菜選項】
+${JSON.stringify(sides, null, 2)}
+
+【飲品或甜點選項】
+${JSON.stringify(drinks, null, 2)}
 `;
 
     const response = await axios.post(
@@ -70,7 +110,7 @@ ${JSON.stringify(filteredDishes, null, 2)}
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 300 // 限制回應長度
+          maxOutputTokens: 400
         },
         safetySettings: [
           { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
