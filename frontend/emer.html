@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>緊急支援頁面</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #ffe4e1;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      margin-top: 30px;
+      color: #cc3366;
+    }
+    .container {
+      padding: 20px;
+    }
+    .button-group {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 30px;
+      margin: 20px 0;
+    }
+    .button-group button, .emergency-btn {
+      font-size: 24px;
+      font-weight: bold;
+      padding: 15px 25px;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+    }
+    .button-group button {
+      background-color: #ff69b4;
+      color: white;
+    }
+    .button-group button:hover {
+      background-color: #ff1493;
+    }
+    .emergency-btn {
+      background-color: red;
+      color: white;
+      font-size: 40px;
+      margin: 20px 0;
+    }
+    .emergency-btn:hover {
+      background-color: darkred;
+    }
+    #map {
+      height: 500px;
+      width: 100%;
+      margin-top: 30px;
+      border-radius: 15px;
+    }
+    footer {
+      margin: 30px;
+      font-size: 14px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>緊急聯絡</h1>
+    <div class="button-group">
+      <button onclick="callNumber('dad')">爸爸</button>
+      <button onclick="callNumber('mom')">媽媽</button>
+      <button onclick="callNumber('bf')">男友</button>
+    </div>
+    <button class="emergency-btn" onclick="callNumber('119')">撥打 119</button>
+
+    <h1>附近診所地圖</h1>
+    <div id="map"></div>
+  </div>
+
+  <footer>
+    🌸 請照顧好自己，如果感到不適，記得及時求助。
+  </footer>
+
+  <script>
+    function callNumber(contact) {
+      const phoneNumbers = {
+        dad: "tel:0912345678",
+        mom: "tel:0923456789",
+        bf: "tel:0934567890",
+        119: "tel:119"
+      };
+      window.location.href = phoneNumbers[contact];
+    }
+
+    let map, infoWindow;
+
+    function initMapWithKey(key) {
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&callback=initMap`;
+      script.async = true;
+      script.defer = true;
+      document.body.appendChild(script);
+    }
+
+    function initMap() {
+      map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 25.0330, lng: 121.5654 },
+        zoom: 15,
+      });
+
+      infoWindow = new google.maps.InfoWindow();
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const pos = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            };
+            map.setCenter(pos);
+
+            new google.maps.Marker({
+              position: pos,
+              map: map,
+              title: "你的位置",
+              icon: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+            });
+
+            const service = new google.maps.places.PlacesService(map);
+            service.nearbySearch({
+              location: pos,
+              radius: 2000,
+              keyword: "診所"
+            }, (results, status) => {
+              if (status === google.maps.places.PlacesServiceStatus.OK) {
+                results.forEach(place => {
+                  const marker = new google.maps.Marker({
+                    position: place.geometry.location,
+                    map,
+                    title: place.name,
+                  });
+
+                  marker.addListener("click", () => {
+                    const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(place.name)}&destination_place_id=${place.place_id}`;
+                    infoWindow.setContent(`<strong>${place.name}</strong><br><a href="${directionsUrl}" target="_blank">🧭 導航到這裡</a>`);
+                    infoWindow.open(map, marker);
+                  });
+                });
+              }
+            });
+          },
+          () => handleLocationError(true, map.getCenter())
+        );
+      } else {
+        handleLocationError(false, map.getCenter());
+      }
+    }
+
+    function handleLocationError(browserHasGeolocation, pos) {
+      infoWindow.setPosition(pos);
+      infoWindow.setContent(
+        browserHasGeolocation
+          ? "無法取得您的定位資訊。"
+          : "您的瀏覽器不支援地理定位。"
+      );
+      infoWindow.open(map);
+    }
+
+    fetch('/mapkey')
+      .then(res => res.json())
+      .then(data => initMapWithKey(data.key))
+      .catch(err => console.error('載入金鑰失敗', err));
+  </script>
+</body>
+</html>
