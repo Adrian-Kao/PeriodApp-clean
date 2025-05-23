@@ -2,94 +2,115 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8">
-  <title>緊急支援頁面</title>
+  <title>緊急聯絡與地圖</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
       font-family: Arial, sans-serif;
       background-color: #ffe4e1;
-      text-align: center;
       margin: 0;
       padding: 0;
+      text-align: center;
     }
     h1 {
-      margin-top: 30px;
+      padding-top: 20px;
       color: #cc3366;
-    }
-    .container {
-      padding: 20px;
     }
     .button-group {
       display: flex;
       justify-content: center;
+      gap: 10px;
       flex-wrap: wrap;
-      gap: 30px;
       margin: 20px 0;
     }
-    .button-group button, .emergency-btn {
-      font-size: 24px;
+    button {
+      padding: 12px 20px;
+      font-size: 16px;
       font-weight: bold;
-      padding: 15px 25px;
       border: none;
-      border-radius: 20px;
+      border-radius: 15px;
       cursor: pointer;
-    }
-    .button-group button {
-      background-color: #ff69b4;
       color: white;
     }
-    .button-group button:hover {
+    .normal-btn {
+      background-color: #ff69b4;
+    }
+    .normal-btn:hover {
       background-color: #ff1493;
     }
     .emergency-btn {
       background-color: red;
-      color: white;
-      font-size: 40px;
-      margin: 20px 0;
+      font-size: 20px;
+      margin: 10px auto;
     }
     .emergency-btn:hover {
       background-color: darkred;
     }
     #map {
       height: 500px;
-      width: 100%;
-      margin-top: 30px;
+      width: 90%;
+      margin: 20px auto;
       border-radius: 15px;
     }
-    footer {
-      margin: 30px;
-      font-size: 14px;
-      color: #666;
+    #input-form {
+      margin: 20px auto;
+    }
+    input[type="tel"], input[type="text"] {
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+      width: 200px;
+      margin: 5px;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>緊急聯絡</h1>
-    <div class="button-group">
-      <button onclick="callNumber('dad')">爸爸</button>
-      <button onclick="callNumber('mom')">媽媽</button>
-      <button onclick="callNumber('bf')">男友</button>
-    </div>
-    <button class="emergency-btn" onclick="callNumber('119')">撥打 119</button>
-
-    <h1>附近診所地圖</h1>
-    <div id="map"></div>
+  <h1>緊急聯絡</h1>
+  <div id="input-form">
+    <p>請輸入聯絡人姓名與電話（可多組）：</p>
+    <input type="text" id="contact-name" placeholder="姓名">
+    <input type="tel" id="contact-phone" placeholder="例如 0912345678">
+    <button onclick="saveContact()">新增聯絡人</button>
   </div>
+  <div id="button-area" class="button-group"></div>
 
-  <footer>
-    🌸 請照顧好自己，如果感到不適，記得及時求助。
-  </footer>
+  <h1>附近診所地圖</h1>
+  <div id="map"></div>
 
   <script>
-    function callNumber(contact) {
-      const phoneNumbers = {
-        dad: "tel:0912345678",
-        mom: "tel:0923456789",
-        bf: "tel:0934567890",
-        119: "tel:119"
-      };
-      window.location.href = phoneNumbers[contact];
+    function saveContact() {
+      const name = document.getElementById("contact-name").value;
+      const phone = document.getElementById("contact-phone").value;
+
+      if (!name || !phone.startsWith("09") || phone.length !== 10) {
+        alert("請輸入正確的姓名與手機號碼（10 碼）");
+        return;
+      }
+
+      let contacts = JSON.parse(localStorage.getItem("emergencyContacts")) || [];
+      contacts.push({ name, phone });
+      localStorage.setItem("emergencyContacts", JSON.stringify(contacts));
+      document.getElementById("contact-name").value = "";
+      document.getElementById("contact-phone").value = "";
+      renderEmergencyUI();
+    }
+
+    function callContact(phone) {
+      window.location.href = `tel:${phone}`;
+    }
+
+    function renderEmergencyUI() {
+      const buttonArea = document.getElementById("button-area");
+      buttonArea.innerHTML = "";
+      const contacts = JSON.parse(localStorage.getItem("emergencyContacts")) || [];
+      contacts.forEach(contact => {
+        const btn = document.createElement("button");
+        btn.className = "emergency-btn";
+        btn.textContent = `聯絡 ${contact.name}`;
+        btn.onclick = () => callContact(contact.phone);
+        buttonArea.appendChild(btn);
+      });
     }
 
     let map, infoWindow;
@@ -170,6 +191,8 @@
       .then(res => res.json())
       .then(data => initMapWithKey(data.key))
       .catch(err => console.error('載入金鑰失敗', err));
+
+    window.onload = renderEmergencyUI;
   </script>
 </body>
 </html>
