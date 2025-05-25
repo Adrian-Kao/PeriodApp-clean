@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>月來悅政生理期健康諮詢系統</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Noto Sans TC', sans-serif;
+      background: linear-gradient(135deg, #fdf6f9 0%, #f8e8ec 100%);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #f06292 0%, #e91e63 100%);
+      color: white;
+      padding: 1.2rem;
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 700;
+      box-shadow: 0 2px 10px rgba(240, 98, 146, 0.3);
+    }
+
+    .main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .chat-container {
+      flex: 1;
+      max-width: 65%;
+      overflow-y: auto;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      background: rgba(255, 255, 255, 0.3);
+      backdrop-filter: blur(10px);
+    }
+
+    .menu {
+      width: 35%;
+      background: rgba(251, 233, 236, 0.8);
+      backdrop-filter: blur(10px);
+      border-left: 1px solid rgba(221, 221, 221, 0.5);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .menu h3 {
+      color: #d81b60;
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin: 0 0 1rem 0;
+      text-align: center;
+    }
+
+    .message {
+      max-width: 80%;
+      padding: 1rem 1.2rem;
+      border-radius: 18px;
+      font-size: 1rem;
+      line-height: 1.5;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .from-user {
+      background: linear-gradient(135deg, #ffe0e6 0%, #ffcdd2 100%);
+      align-self: flex-end;
+      border: 1px solid #f8bbd9;
+    }
+
+    .from-bot {
+      background: linear-gradient(135deg, #ffffff 0%, #f9f9f9 100%);
+      border: 1px solid #e0e0e0;
+      align-self: flex-start;
+    }
+
+    .bot-name {
+      color: #d81b60;
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+    }
+
+    /* Markdown 樣式 */
+    .message-content h1,
+    .message-content h2,
+    .message-content h3,
+    .message-content h4,
+    .message-content h5,
+    .message-content h6 {
+      color: #d81b60;
+      margin: 0.8rem 0 0.4rem 0;
+      line-height: 1.3;
+    }
+
+    .message-content h1 { font-size: 1.3rem; }
+    .message-content h2 { font-size: 1.2rem; }
+    .message-content h3 { font-size: 1.1rem; }
+    .message-content h4 { font-size: 1rem; }
+
+    .message-content p {
+      margin: 0.5rem 0;
+      line-height: 1.6;
+    }
+
+    .message-content ul,
+    .message-content ol {
+      margin: 0.8rem 0;
+      padding-left: 1.2rem;
+    }
+
+    .message-content li {
+      margin: 0.4rem 0;
+      line-height: 1.5;
+    }
+
+    .message-content strong {
+      color: #d81b60;
+      font-weight: 600;
+    }
+
+    .message-content em {
+      color: #666;
+      font-style: italic;
+    }
+
+    .message-content code {
+      background: rgba(240, 98, 146, 0.1);
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 0.9rem;
+    }
+
+    .message-content pre {
+      background: rgba(240, 98, 146, 0.05);
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 0.8rem 0;
+    }
+
+    .message-content blockquote {
+      border-left: 4px solid #f06292;
+      padding-left: 1rem;
+      margin: 0.8rem 0;
+      color: #666;
+      font-style: italic;
+    }
+
+    .message-content a {
+      color: #f06292;
+      text-decoration: none;
+    }
+
+    .message-content a:hover {
+      text-decoration: underline;
+    }
+
+    .feature-card {
+      padding: 1rem 1.2rem;
+      background: linear-gradient(135deg, #f8bbd0 0%, #f48fb1 100%);
+      border-radius: 12px;
+      color: #333;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(244, 143, 177, 0.3);
+    }
+
+    .feature-card:hover {
+      background: linear-gradient(135deg, #f48fb1 0%, #e91e63 100%);
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(244, 143, 177, 0.4);
+    }
+
+    .quick-questions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    .quick-question {
+      padding: 0.8rem 1rem;
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid #f8bbd0;
+      border-radius: 10px;
+      color: #333;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .quick-question:hover {
+      background: #f8bbd0;
+      color: #d81b60;
+      transform: translateX(5px);
+    }
+
+    .emergency-button {
+      position: fixed;
+      bottom: 100px;
+      right: 25px;
+      background: linear-gradient(135deg, #ff5252 0%, #d32f2f 100%);
+      width: 65px;
+      height: 65px;
+      border-radius: 12px;
+      border: none;
+      color: white;
+      font-weight: bold;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      box-shadow: 0 4px 15px rgba(255, 82, 82, 0.4);
+      transition: all 0.3s ease;
+    }
+
+    .emergency-button:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 20px rgba(255, 82, 82, 0.6);
+    }
+
+    .input-area {
+      display: flex;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid rgba(204, 204, 204, 0.5);
+      gap: 0.8rem;
+    }
+
+    .input-area input {
+      flex: 1;
+      padding: 0.8rem 1.2rem;
+      border-radius: 25px;
+      border: 2px solid #f8bbd0;
+      outline: none;
+      font-size: 1rem;
+      transition: border-color 0.3s ease;
+    }
+
+    .input-area input:focus {
+      border-color: #f06292;
+      box-shadow: 0 0 0 3px rgba(240, 98, 146, 0.1);
+    }
+
+    .input-area button {
+      background: linear-gradient(135deg, #f06292 0%, #e91e63 100%);
+      color: white;
+      border: none;
+      border-radius: 25px;
+      padding: 0.8rem 1.5rem;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(240, 98, 146, 0.3);
+    }
+
+    .input-area button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 15px rgba(240, 98, 146, 0.4);
+    }
+
+    .input-area button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .loading {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #666;
+    }
+
+    .loading-dots {
+      display: inline-flex;
+      gap: 2px;
+    }
+
+    .loading-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: #f06292;
+      animation: bounce 1.4s infinite ease-in-out both;
+    }
+
+    .loading-dot:nth-child(1) { animation-delay: -0.32s; }
+    .loading-dot:nth-child(2) { animation-delay: -0.16s; }
+
+    @keyframes bounce {
+      0%, 80%, 100% { 
+        transform: scale(0);
+      } 40% { 
+        transform: scale(1);
+      }
+    }
+
+    .system-status {
+      padding: 0.8rem;
+      background: rgba(76, 175, 80, 0.1);
+      border: 1px solid #4caf50;
+      border-radius: 8px;
+      color: #2e7d32;
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    .system-status.error {
+      background: rgba(244, 67, 54, 0.1);
+      border-color: #f44336;
+      color: #c62828;
+    }
+
+    @media (max-width: 768px) {
+      .main {
+        flex-direction: column;
+      }
+      
+      .chat-container {
+        max-width: 100%;
+        height: 60%;
+      }
+      
+      .menu {
+        width: 100%;
+        height: 40%;
+      }
+      
+      .emergency-button {
+        bottom: 120px;
+        right: 15px;
+        width: 55px;
+        height: 55px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  🌸 月來悅政生理期健康諮詢系統 🌸
+</header>
+
+<div class="main">
+  <div class="chat-container" id="chat">
+    <div class="message from-bot">
+      <div class="bot-name">阿月小幫手</div>
+      您好！我是阿月，您的專屬生理期健康顧問。我可以回答您關於月經健康、生理期護理、症狀管理等問題。請隨時向我提問！
+    </div>
+  </div>
+
+  <div class="menu">
+    <h3>🏥 快速功能</h3>
+    
+    <a href="Ai-chat.html" class="feature-card">
+      💬 健康餐飲推薦系統
+    </a>
+    
+    <a href="map.html" class="feature-card">
+      🗺️ 校園月經地圖
+    </a>
+
+    <div class="system-status" id="systemStatus">
+      🔄 檢查系統狀態中...
+    </div>
+
+    <h3>💡 常見問題</h3>
+    <div class="quick-questions">
+      <div class="quick-question" onclick="askQuickQuestion('月經週期正常是多少天？')">
+        月經週期正常是多少天？
+      </div>
+      <div class="quick-question" onclick="askQuickQuestion('生理期可以運動嗎？')">
+        生理期可以運動嗎？
+      </div>
+      <div class="quick-question" onclick="askQuickQuestion('經痛該如何緩解？')">
+        經痛該如何緩解？
+      </div>
+      <div class="quick-question" onclick="askQuickQuestion('生理期飲食要注意什麼？')">
+        生理期飲食要注意什麼？
+      </div>
+      <div class="quick-question" onclick="askQuickQuestion('什麼情況需要看醫生？')">
+        什麼情況需要看醫生？
+      </div>
+    </div>
+  </div>
+</div>
+
+<a href="emer.html" class="emergency-button">
+  🚨<br>EMER
+</a>
+
+<div class="input-area">
+  <input type="text" id="userInput" placeholder="請輸入您的生理期健康問題...">
+  <button onclick="sendMessage()" id="sendButton">送出</button>
+</div>
+
+<script>
+const API_BASE_URL = 'http://localhost:5050/api';
+let isLoading = false;
+
+// 初始化 marked 配置
+marked.setOptions({
+  breaks: true,        // 支援換行
+  gfm: true,          // 支援 GitHub Flavored Markdown
+  sanitize: false     // 允許 HTML
+});
+
+// 處理 markdown 內容
+function processMarkdown(text) {
+  // 先將數字列表轉換為標準格式
+  text = text.replace(/^(\d+)\.\s+/gm, '$1. ');
+  
+  // 處理特殊的換行情況
+  text = text.replace(/(\d+\.\s[^\n]+)\n(?=\d+\.)/g, '$1\n\n');
+  
+  // 使用 marked 解析 markdown
+  return marked.parse(text);
+}
+
+// 檢查系統狀態
+async function checkSystemStatus() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/health`);
+    const data = await response.json();
+    
+    const statusElement = document.getElementById('systemStatus');
+    if (data.status === 'healthy' && data.rag_system === 'healthy') {
+      statusElement.textContent = '✅ 系統運行正常';
+      statusElement.className = 'system-status';
+    } else {
+      statusElement.textContent = '⚠️ 系統部分功能異常';
+      statusElement.className = 'system-status error';
+    }
+  } catch (error) {
+    const statusElement = document.getElementById('systemStatus');
+    statusElement.textContent = '❌ 系統連線失敗';
+    statusElement.className = 'system-status error';
+  }
+}
+
+// 發送訊息
+async function sendMessage() {
+  const userInput = document.getElementById('userInput').value.trim();
+  if (!userInput || isLoading) return;
+
+  const chat = document.getElementById('chat');
+  const sendButton = document.getElementById('sendButton');
+
+  // 顯示用戶訊息
+  const userMessage = document.createElement('div');
+  userMessage.className = 'message from-user';
+  userMessage.textContent = userInput;
+  chat.appendChild(userMessage);
+  chat.scrollTop = chat.scrollHeight;
+
+  // 清空輸入框並禁用按鈕
+  document.getElementById('userInput').value = '';
+  isLoading = true;
+  sendButton.disabled = true;
+  sendButton.textContent = '處理中...';
+
+  // 顯示載入動畫
+  const loadingMessage = document.createElement('div');
+  loadingMessage.className = 'message from-bot loading';
+  loadingMessage.innerHTML = `
+    <div class="bot-name">阿月小幫手</div>
+    <div class="loading">
+      正在思考中
+      <div class="loading-dots">
+        <div class="loading-dot"></div>
+        <div class="loading-dot"></div>
+        <div class="loading-dot"></div>
+      </div>
+    </div>
+  `;
+  chat.appendChild(loadingMessage);
+  chat.scrollTop = chat.scrollHeight;
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: userInput })
+    });
+
+    const data = await response.json();
+
+    // 移除載入動畫
+    chat.removeChild(loadingMessage);
+
+    // 顯示回答
+    const botMessage = document.createElement('div');
+    botMessage.className = 'message from-bot';
+    
+    if (response.ok && data.answer) {
+      const processedAnswer = processMarkdown(data.answer);
+      botMessage.innerHTML = `
+        <div class="bot-name">阿月小幫手</div>
+        <div class="message-content">${processedAnswer}</div>
+      `;
+    } else {
+      botMessage.innerHTML = `
+        <div class="bot-name">阿月小幫手</div>
+        <div class="message-content">
+          很抱歉，我目前無法回答這個問題。請稍後再試，或者嘗試換個方式提問。
+          <br><small>錯誤訊息：${data.error || '未知錯誤'}</small>
+        </div>
+      `;
+    }
+    
+    chat.appendChild(botMessage);
+    chat.scrollTop = chat.scrollHeight;
+
+  } catch (error) {
+    console.error('API呼叫錯誤:', error);
+    
+    // 移除載入動畫
+    chat.removeChild(loadingMessage);
+    
+    const errorMessage = document.createElement('div');
+    errorMessage.className = 'message from-bot';
+    errorMessage.innerHTML = `
+      <div class="bot-name">阿月小幫手</div>
+      <div class="message-content">
+        很抱歉，目前系統連線出現問題，請檢查網路連線或稍後再試。
+        <br><small>如果問題持續發生，請聯繫系統管理員。</small>
+      </div>
+    `;
+    chat.appendChild(errorMessage);
+    chat.scrollTop = chat.scrollHeight;
+  } finally {
+    // 重新啟用按鈕
+    isLoading = false;
+    sendButton.disabled = false;
+    sendButton.textContent = '送出';
+  }
+}
+
+// 快速問題點擊
+function askQuickQuestion(question) {
+  document.getElementById('userInput').value = question;
+  sendMessage();
+}
+
+// Enter 鍵支援
+document.getElementById('userInput').addEventListener('keydown', function(event) {
+  if (event.key === 'Enter' && !isLoading) {
+    event.preventDefault();
+    sendMessage();
+  }
+});
+
+// 頁面載入時檢查系統狀態
+document.addEventListener('DOMContentLoaded', function() {
+  checkSystemStatus();
+  
+  // 每30秒檢查一次系統狀態
+  setInterval(checkSystemStatus, 30000);
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>校園外月經地圖</title>
+  <style>
+    body {
+      font-family: "Arial", sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    #map {
+      height: 80vh;
+      width: 100%;
+    }
+
+    #controls {
+      padding: 10px;
+      background-color: #f5f5f5;
+    }
+
+    input, button, select {
+      margin: 5px;
+      padding: 5px;
+    }
+
+    #status-info {
+      padding: 10px;
+      color: #d32f2f;
+      background-color: #ffe0e0;
+      display: none;
+    }
+
+    #legend {
+      padding: 10px;
+      background-color: #fff3e0;
+      border: 1px solid #ffa726;
+      margin: 10px;
+    }
+
+    #loading {
+      color: #555;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <label for="apiKeyInput">請輸入 Google Maps API 金鑰：</label>
+    <input type="text" id="apiKeyInput" placeholder="輸入 API 金鑰" />
+    <button onclick="loadMapWithApiKey()">載入地圖</button>
+    <br>
+    <button onclick="getUserLocation()">使用目前位置</button>
+    <select id="placeType">
+      <option value="pharmacy">藥局</option>
+      <option value="hospital">醫院</option>
+      <option value="convenience_store">便利商店</option>
+    </select>
+    <button onclick="searchNearby()">搜尋附近地點</button>
+    <br>
+    <label for="address">或輸入地址：</label>
+    <input type="text" id="address" placeholder="輸入地址查詢" />
+    <button onclick="searchByAddress()">以地址查詢</button>
+    <div id="loading">載入中...</div>
+    <div id="status-info"></div>
+  </div>
+
+  <div id="legend">
+    <strong>圖示說明：</strong>
+    <ul>
+      <li>藥局、醫院、便利商店為可能取得生理用品之地點</li>
+      <li>請點選圖示查看地點資訊</li>
+    </ul>
+  </div>
+
+  <div id="map"></div>
+
+  <script>
+    let map, service, infowindow;
+    let mapInitialized = false;
+
+    window.onload = () => {
+      const savedKey = localStorage.getItem('gmap_api_key');
+      if (savedKey) {
+        document.getElementById('apiKeyInput').value = savedKey;
+      }
+    };
+
+    function loadMapWithApiKey() {
+      const apiKey = document.getElementById('apiKeyInput').value.trim();
+      if (!apiKey) {
+        updateStatus('請輸入有效的 Google Maps API 金鑰', true);
+        return;
+      }
+      localStorage.setItem('gmap_api_key', apiKey);
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initMap&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+
+    function initMap() {
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: { lat: 25.033964, lng: 121.564468 }, // 台北市中心
+        zoom: 15,
+      });
+      infowindow = new google.maps.InfoWindow();
+      service = new google.maps.places.PlacesService(map);
+      mapInitialized = true;
+      updateStatus("地圖初始化完成");
+    }
+
+    function updateStatus(message, isError = false) {
+      const statusDiv = document.getElementById("status-info");
+      statusDiv.textContent = message;
+      statusDiv.style.display = "block";
+      statusDiv.style.backgroundColor = isError ? "#ffe0e0" : "#e0f7fa";
+      statusDiv.style.color = isError ? "#d32f2f" : "#006064";
+    }
+
+    function setLoading(isLoading) {
+      document.getElementById("loading").style.display = isLoading ? "block" : "none";
+    }
+
+    function getUserLocation() {
+      if (!navigator.geolocation) {
+        updateStatus("此瀏覽器不支援定位", true);
+        return;
+      }
+
+      setLoading(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const userLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          map.setCenter(userLocation);
+          new google.maps.Marker({
+            map,
+            position: userLocation,
+            label: "我在這",
+          });
+          setLoading(false);
+          updateStatus("已定位到目前位置");
+        },
+        (error) => {
+          setLoading(false);
+          let errorMsg = "定位失敗：";
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              errorMsg += "位置權限被拒絕";
+              break;
+            case error.POSITION_UNAVAILABLE:
+              errorMsg += "位置資訊無法取得";
+              break;
+            case error.TIMEOUT:
+              errorMsg += "位置請求逾時";
+              break;
+            default:
+              errorMsg += "未知錯誤";
+              break;
+          }
+          updateStatus(errorMsg, true);
+        }
+      );
+    }
+
+    function searchNearby() {
+      if (!mapInitialized) {
+        updateStatus('地圖尚未初始化，請先輸入金鑰並載入地圖', true);
+        return;
+      }
+
+      const selectedType = document.getElementById("placeType").value;
+      const location = map.getCenter();
+
+      const request = {
+        location: location,
+        radius: 1500,
+        type: [selectedType],
+      };
+
+      setLoading(true);
+      service.nearbySearch(request, (results, status) => {
+        setLoading(false);
+        if (status === google.maps.places.PlacesServiceStatus.OK && results.length) {
+          results.forEach((place) => {
+            const marker = new google.maps.Marker({
+              map,
+              position: place.geometry.location,
+            });
+
+            google.maps.event.addListener(marker, "click", () => {
+              infowindow.setContent(
+                `<strong>${place.name}</strong><br>${place.vicinity}`
+              );
+              infowindow.open(map, marker);
+            });
+          });
+          updateStatus(`找到 ${results.length} 筆地點`);
+        } else {
+          updateStatus("找不到符合的地點", true);
+        }
+      });
+    }
+
+    function searchByAddress() {
+      const address = document.getElementById("address").value.trim();
+      if (!address) {
+        updateStatus("請輸入地址", true);
+        return;
+      }
+
+      if (!mapInitialized) {
+        updateStatus('地圖尚未初始化，請先輸入金鑰並載入地圖', true);
+        return;
+      }
+
+      setLoading(true);
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ address }, (results, status) => {
+        setLoading(false);
+        if (status === "OK") {
+          const location = results[0].geometry.location;
+          map.setCenter(location);
+          new google.maps.Marker({
+            map,
+            position: location,
+            label: "查詢地點",
+          });
+          updateStatus("成功找到地址位置，請選擇搜尋類型後按下搜尋附近地點");
+        } else {
+          updateStatus("無法找到該地址", true);
+        }
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校園外月經地圖 - 找到附近的生理用品販售點與醫療場所</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', '微軟正黑體', sans-serif;
+            background-color: #f5f5f5;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ff6b9d, #c44569);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .control-group {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .control-group label {
+            font-weight: bold;
+            color: #333;
+            min-width: 80px;
+        }
+
+        input, select, button {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #ff6b9d, #c44569);
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .map-container {
+            position: relative;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        #map {
+            height: 500px;
+            width: 100%;
+        }
+
+        .info-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .location-item {
+            padding: 15px;
+            border-left: 4px solid #ff6b9d;
+            margin-bottom: 10px;
+            background: #f9f9f9;
+            border-radius: 0 5px 5px 0;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .location-item:hover {
+            background: #f0f0f0;
+            transform: translateX(5px);
+        }
+
+        .location-item h3 {
+            color: #c44569;
+            margin-bottom: 5px;
+        }
+
+        .location-item p {
+            color: #666;
+            font-size: 14px;
+            margin: 2px 0;
+        }
+
+        .legend {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+        }
+
+        .debug-info {
+            background: #e8f5e8;
+            border: 1px solid #c3e6c3;
+            color: #2d5a2d;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .status-info {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #ff6b9d;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .control-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .legend {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>月經地圖💗</h1>
+        <p>找到附近的生理用品販售點與公共設施</p>
+    </div>
+
+    <div class="container">
+        <div class="debug-info">
+            <strong>除錯資訊：</strong><br>
+            API Key: {% if GOOGLE_MAPS_API_KEY %}{{ GOOGLE_MAPS_API_KEY[:10] }}...{% else %}未設置{% endif %}<br>
+            地圖狀態: <span id="mapStatus">初始化中...</span><br>
+            <div id="debugLog"></div>
+        </div>
+
+        <div class="status-info" id="statusInfo" style="display: none;">
+            <span id="statusMessage"></span>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>搜索類型：</label>
+                <select id="searchType">
+                    <option value="pharmacy">藥局</option>
+                    <option value="convenience_store">便利商店</option>
+                    <option value="supermarket">超市</option>
+                    <option value="hospital">醫院</option>
+                    <option value="shopping_mall">購物中心</option>
+                </select>
+                <button id="searchBtn" onclick="searchNearby()" disabled>搜索附近</button>
+            </div>
+
+            <div class="control-group">
+                <label>自訂地址：</label>
+                <input type="text" id="addressInput" placeholder="輸入地址（例：台北車站）">
+                <button id="addressBtn" onclick="searchByAddress()" disabled>前往位置</button>
+            </div>
+        </div>
+
+        <div class="map-container">
+            <div id="map"></div>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #ff6b9d;"></div>
+                <span>藥局</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #4ecdc4;"></div>
+                <span>便利商店</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #45b7d1;"></div>
+                <span>超市</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #f39c12;"></div>
+                <span>醫院</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #9b59b6;"></div>
+                <span>購物中心</span>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <h2>找到的地點 <span id="resultCount"></span></h2>
+            <div id="locationsList">
+                <p>請選擇搜索類型後按下「搜索附近」按鈕</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        
+        // 嘗試立即觸發瀏覽器的地理位置提示
+        window.addEventListener('load', () => {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    () => {
+                        console.log('使用者允許位置存取');
+                    },
+                    (error) => {
+                        console.warn('使用者拒絕或錯誤:', error.message);
+                    }
+                );
+            }
+        });
+
+    
+        let map;
+        let service;
+        let infoWindow;
+        let markers = [];
+        let mapInitialized = false;
+        let userLocation = null;
+
+        const typeColors = {
+            pharmacy: '#ff6b9d',
+            convenience_store: '#4ecdc4',
+            supermarket: '#45b7d1',
+            hospital: '#f39c12',
+            shopping_mall: '#9b59b6'
+        };
+
+        const typeLabels = {
+            pharmacy: '藥局',
+            convenience_store: '便利商店',
+            supermarket: '超市',
+            hospital: '醫院',
+            shopping_mall: '購物中心'
+        };
+
+        // 從Flask模板獲取API Key
+        const apiKey = '{{ GOOGLE_MAPS_API_KEY }}';
+
+        function updateStatus(message, isError = false) {
+            const statusElement = document.getElementById('mapStatus');
+            const debugLog = document.getElementById('debugLog');
+            const statusInfo = document.getElementById('statusInfo');
+            const statusMessage = document.getElementById('statusMessage');
+            
+            if (statusElement) statusElement.textContent = message;
+            if (debugLog) debugLog.innerHTML += `<br>${new Date().toLocaleTimeString()}: ${message}`;
+            
+            if (statusInfo && statusMessage) {
+                if (isError) {
+                    statusInfo.style.display = 'block';
+                    statusInfo.style.background = '#f8d7da';
+                    statusInfo.style.borderColor = '#f5c6cb';
+                    statusInfo.style.color = '#721c24';
+                    statusMessage.textContent = message;
+                } else {
+                    statusInfo.style.display = 'block';
+                    statusInfo.style.background = '#d4edda';
+                    statusInfo.style.borderColor = '#c3e6cb';
+                    statusInfo.style.color = '#155724';
+                    statusMessage.textContent = message;
+                }
+            }
+        }
+
+        function enableButtons() {
+            document.getElementById('searchBtn').disabled = false;
+            document.getElementById('addressBtn').disabled = false;
+        }
+
+        // 檢查並載入 Google Maps API
+        if (!apiKey || apiKey === '' || apiKey === 'None') {
+            updateStatus('錯誤：Google Maps API Key 未設置！請檢查環境變數', true);
+        } else {
+            updateStatus('正在載入 Google Maps API...');
+            loadGoogleMapsAPI();
+        }
+
+        function loadGoogleMapsAPI() {
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initMap&language=zh-TW&region=TW`;
+            script.async = true;
+            script.defer = true;
+            
+            script.onerror = function() {
+                updateStatus('Google Maps API 載入失敗！請檢查 API Key 或網路連線', true);
+            };
+            
+            document.head.appendChild(script);
+        }
+
+        // 全域回調函數
+        window.initMap = function() {
+            try {
+                updateStatus('正在初始化地圖...');
+                
+                // 預設位置（台北）
+                const defaultLocation = { lat: 25.0330, lng: 121.5654 };
+                
+                map = new google.maps.Map(document.getElementById('map'), {
+                    zoom: 14,
+                    center: defaultLocation,
+                    styles: [
+                        {
+                            featureType: 'poi',
+                            elementType: 'labels',
+                            stylers: [{ visibility: 'off' }]
+                        }
+                    ]
+                });
+
+                service = new google.maps.places.PlacesService(map);
+                infoWindow = new google.maps.InfoWindow();
+                mapInitialized = true;
+                
+                updateStatus('地圖初始化成功！');
+                enableButtons();
+
+                // 嘗試取得用戶位置
+                getUserLocation();
+
+            } catch (error) {
+                updateStatus('地圖初始化失敗: ' + error.message, true);
+                console.error('地圖初始化錯誤:', error);
+            }
+        };
+
+        function getUserLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        userLocation = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        };
+                        
+                        map.setCenter(userLocation);
+                        
+                        // 添加用戶位置標記
+                        new google.maps.Marker({
+                            position: userLocation,
+                            map: map,
+                            title: '您的位置',
+                            icon: {
+                                url: 'data:image/svg+xml;base64,' + btoa(`
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+                                        <circle cx="16" cy="16" r="8" fill="#ff6b9d" stroke="white" stroke-width="3"/>
+                                        <circle cx="16" cy="16" r="3" fill="white"/>
+                                    </svg>
+                                `),
+                                scaledSize: new google.maps.Size(32, 32)
+                            }
+                        });
+                        
+                        updateStatus('已取得您的位置！現在可以搜索附近地點');
+                    },
+                    function(error) {
+                        let errorMsg = '無法取得位置: ';
+                        switch(error.code) {
+                            case error.PERMISSION_DENIED:
+                                errorMsg += '位置權限被拒絕';
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                errorMsg += '位置資訊無法取得';
+                                break;
+                            case error.TIMEOUT:
+                                errorMsg += '位置請求逾時';
+                                break;
+                            default:
+                                errorMsg += '未知錯誤';
+                                break;
+                        }
+                        updateStatus(errorMsg + '，使用預設位置（台北）');
+                    }
+                );
+            } else {
+                updateStatus('瀏覽器不支援定位，使用預設位置（台北）');
+            }
+        }
+
+        function clearMarkers() {
+            markers.forEach(marker => marker.setMap(null));
+            markers = [];
+        }
+
+        function searchNearby() {
+            if (!mapInitialized) {
+                updateStatus('地圖尚未載入完成，請稍後再試', true);
+                return;
+            }
+
+            const searchType = document.getElementById('searchType').value;
+            const center = map.getCenter();
+            
+            updateStatus(`正在搜索附近的${typeLabels[searchType]}...`);
+            clearMarkers();
+            
+            document.getElementById('locationsList').innerHTML = '<div class="loading"></div> 搜索中...';
+            document.getElementById('resultCount').textContent = '';
+
+            const request = {
+                location: center,
+                radius: 2000, // 2公里範圍
+                type: [searchType]
+            };
+
+            service.nearbySearch(request, function(results, status) {
+                if (status === google.maps.places.PlacesServiceStatus.OK) {
+                    if (results.length > 0) {
+                        updateStatus(`找到 ${results.length} 個${typeLabels[searchType]}`);
+                        displayResults(results, searchType);
+                    } else {
+                        updateStatus(`附近2公里內沒有找到${typeLabels[searchType]}`);
+                        document.getElementById('locationsList').innerHTML = `<p>附近2公里內沒有找到${typeLabels[searchType]}，請嘗試其他搜索類型或移動地圖到其他位置</p>`;
+                    }
+                } else {
+                    let errorMsg = '搜索失敗: ';
+                    switch(status) {
+                        case 'ZERO_RESULTS':
+                            errorMsg += '沒有找到結果';
+                            break;
+                        case 'OVER_QUERY_LIMIT':
+                            errorMsg += 'API 查詢限制';
+                            break;
+                        case 'REQUEST_DENIED':
+                            errorMsg += 'API 請求被拒絕';
+                            break;
+                        case 'INVALID_REQUEST':
+                            errorMsg += '無效的請求';
+                            break;
+                        default:
+                            errorMsg += status;
+                    }
+                    updateStatus(errorMsg, true);
+                    document.getElementById('locationsList').innerHTML = `<p style="color: red;">${errorMsg}</p>`;
+                }
+            });
+        }
+
+        function searchByAddress() {
+            if (!mapInitialized) {
+                updateStatus('地圖尚未載入完成，請稍後再試', true);
+                return;
+            }
+
+            const address = document.getElementById('addressInput').value.trim();
+            if (!address) {
+                alert('請輸入地址');
+                return;
+            }
+
+            updateStatus('正在搜索地址...');
+            
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ address: address, region: 'TW' }, function(results, status) {
+                if (status === 'OK') {
+                    map.setCenter(results[0].geometry.location);
+                    map.setZoom(15);
+                    updateStatus(`已定位到: ${results[0].formatted_address}`);
+                } else {
+                    updateStatus(`找不到地址: ${address}`, true);
+                }
+            });
+        }
+
+        function displayResults(places, type) {
+            const locationsList = document.getElementById('locationsList');
+            const resultCount = document.getElementById('resultCount');
+            
+            locationsList.innerHTML = '';
+            resultCount.textContent = `(${places.length} 個結果)`;
+
+            places.forEach(function(place, index) {
+                // 創建地圖標記
+                const marker = new google.maps.Marker({
+                    position: place.geometry.location,
+                    map: map,
+                    title: place.name,
+                    icon: {
+                        url: 'data:image/svg+xml;base64,' + btoa(`
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="32" viewBox="0 0 24 32">
+                                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 21 7 21s7-15.75 7-21c0-3.87-3.13-7-7-7z" 
+                                      fill="${typeColors[type]}" stroke="white" stroke-width="1"/>
+                                <circle cx="12" cy="9" r="3" fill="white"/>
+                            </svg>
+                        `),
+                        scaledSize: new google.maps.Size(24, 32)
+                    }
+                });
+
+                markers.push(marker);
+
+                // 點擊標記顯示資訊
+                marker.addListener('click', function() {
+                    const content = `
+                        <div style="padding: 10px; max-width: 300px;">
+                            <h3 style="color: ${typeColors[type]}; margin-bottom: 8px;">${place.name}</h3>
+                            <p><strong>評分：</strong> ${place.rating ? place.rating + ' ⭐' : '無評分'}</p>
+                            <p><strong>地址：</strong> ${place.vicinity}</p>
+                            <p><strong>類型：</strong> ${typeLabels[type]}</p>
+                            ${place.opening_hours ? 
+                                `<p><strong>營業狀態：</strong> <span style="color: ${place.opening_hours.open_now ? 'green' : 'red'};">${place.opening_hours.open_now ? '營業中' : '休息中'}</span></p>` 
+                                : ''
+                            }
+                            ${place.price_level ? 
+                                `<p><strong>價格等級：</strong> ${'$'.repeat(place.price_level)}</p>` 
+                                : ''
+                            }
+                        </div>
+                    `;
+                    infoWindow.setContent(content);
+                    infoWindow.open(map, marker);
+                });
+
+                // 添加到地點列表
+                const locationItem = document.createElement('div');
+                locationItem.className = 'location-item';
+                locationItem.innerHTML = `
+                    <h3>${place.name}</h3>
+                    <p><strong>評分：</strong> ${place.rating ? place.rating + ' ⭐' : '無評分'}</p>
+                    <p><strong>地址：</strong> ${place.vicinity}</p>
+                    <p><strong>類型：</strong> ${typeLabels[type]}</p>
+                    ${place.opening_hours ? 
+                        `<p><strong>營業狀態：</strong> <span style="color: ${place.opening_hours.open_now ? 'green' : 'red'};">${place.opening_hours.open_now ? '營業中' : '休息中'}</span></p>` 
+                        : ''
+                    }
+                `;
+                
+                // 點擊列表項目時顯示在地圖上
+                locationItem.addEventListener('click', function() {
+                    map.setCenter(place.geometry.location);
+                    map.setZoom(16);
+                    google.maps.event.trigger(marker, 'click');
+                });
+                
+                locationsList.appendChild(locationItem);
+            });
+        }
+
+        // 頁面載入完成
+        window.addEventListener('load', function() {
+            updateStatus('頁面載入完成，等待地圖初始化...');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+[
+    {
+        "name": "女性健康中心",
+        "address": "台北市信義區忠孝東路五段55號",
+        "phone": "02-12345678",
+        "specialties": [
+            "婦科",
+            "月經問題",
+            "內分泌"
+        ],
+        "coordinates": {
+            "latitude": 25.041171,
+            "longitude": 121.565227
+        }
+    },
+    {
+        "name": "月亮診所",
+        "address": "台北市大安區敦化南路一段233號",
+        "phone": "02-87654321",
+        "specialties": [
+            "婦科",
+            "青春期諮詢",
+            "經痛治療"
+        ],
+        "coordinates": {
+            "latitude": 25.036398,
+            "longitude": 121.55183
+        }
+    },
+    {
+        "name": "健康女性醫療中心",
+        "address": "新北市板橋區民權路66號",
+        "phone": "02-29876543",
+        "specialties": [
+            "婦科",
+            "不孕症",
+            "經前症候群"
+        ],
+        "coordinates": {
+            "latitude": 25.013473,
+            "longitude": 121.465102
+        }
+    }
+]
